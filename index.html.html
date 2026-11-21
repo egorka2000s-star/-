@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мастерская проекта: Проверка знаний</title>
+<style>
+  :root {
+    --primary-color: #00509e;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --bg-color: #f8f9fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+  .game-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+  }
+  .progress-bar { height: 8px; background: #e9ecef; }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: var(--primary-color);
+    transition: width 0.4s ease;
+  }
+  .game-header {
+    background: var(--primary-color);
+    color: white;
+    padding: 20px;
+    text-align: center;
+  }
+  .game-header h1 { margin: 0 0 5px; font-size: 1.4em; }
+  .game-header p { margin: 0; opacity: 0.9; font-size: 0.95em; }
+  .game-body { padding: 25px; }
+  .question {
+    font-size: 1.15em;
+    font-weight: bold;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .options, .sortable-list { margin-bottom: 20px; }
+  .option-item, .drag-item {
+    background: #f1f3f5;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    line-height: 1.4;
+  }
+  .option-item:hover, .drag-item:hover { border-color: var(--primary-color); background: #e9ecef; }
+  .option-item.selected { border-color: var(--primary-color); background: #e7f1ff; }
+  .option-item.correct, .drag-item.correct {
+    border-color: var(--success-color);
+    background: #d4edda;
+    color: #155724;
+  }
+  .option-item.wrong, .drag-item.wrong {
+    border-color: var(--error-color);
+    background: #f8d7da;
+    color: #721c24;
+  }
+  .option-item.disabled, .drag-item.disabled { cursor: default; }
+  .input-group { margin-bottom: 20px; }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 1em;
+  }
+  .btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1.05em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+    font-weight: bold;
+  }
+  .btn:hover { background: #003d7a; }
+  .btn:disabled { background: #adb5bd; cursor: not-allowed; }
+  .feedback {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    display: none;
+    line-height: 1.4;
+  }
+  .feedback.show { display: block; }
+  .feedback.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .feedback.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  .final-screen { text-align: center; display: none; padding: 10px 0; }
+  .final-screen h2 { color: var(--primary-color); }
+  .rules {
+    background: #fff3cd;
+    color: #856404;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+    line-height: 1.4;
+  }
+  pre {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.95em;
+    border: 1px solid #dee2e6;
+  }
+  .image-container { text-align: center; margin-bottom: 15px; }
+  .image-container svg {
+    border: 3px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    max-width: 100%;
+    height: auto;
+    transition: border-color 0.2s;
+  }
+  .image-container svg:hover { border-color: var(--primary-color); }
+  .match-columns { display: flex; gap: 15px; flex-wrap: wrap; }
+  .match-col { flex: 1 1 45%; min-width: 220px; }
+  .match-col .option-item { font-size: 0.95em; }
+  .sort-controls { display: inline-flex; flex-direction: column; margin-left: 10px; vertical-align: middle; }
+  .sort-controls button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 28px;
+    height: 22px;
+    font-size: 12px;
+    cursor: pointer;
+    margin: 1px 0;
+  }
+  .sort-controls button:disabled { background: #adb5bd; cursor: not-allowed; }
+  .drag-item-row { display: flex; align-items: center; }
+  .drag-item-row .drag-item { flex: 1; margin-bottom: 10px; }
+  @media (max-width: 500px) {
+    .game-body { padding: 15px; }
+    .question { font-size: 1.05em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+  <div class="progress-bar"><div class="progress-fill"></div></div>
+  <div class="game-header">
+    <h1>Оформление проектной работы</h1>
+    <p>Проверьте свои знания ГОСТ и правил</p>
+  </div>
+  <div class="game-body">
+    <div class="rules">
+      <strong>Правила:</strong> Вам предстоит пройти 7 испытаний. Внимательно читайте задания: где-то нужно найти ошибку, где-то — расставить элементы в правильном порядке.
+    </div>
+
+    <div id="question-area">
+      <div id="feedback" class="feedback"></div>
+      <div id="question-text" class="question"></div>
+      <div id="options" class="options"></div>
+      <div id="input-area" class="input-group" style="display:none;"></div>
+      <div id="sortable-area" class="sortable-list"></div>
+      <button id="submit-btn" class="btn">Проверить ответ</button>
+    </div>
+
+    <div id="final-screen" class="final-screen">
+      <h2>Поздравляем! Тест пройден.</h2>
+      <p>Вы отлично разбираетесь в правилах оформления.</p>
+      <button id="restart-btn" class="btn">Пройти заново</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Встроенные SVG-картинки (data URI) ---------- */
+function makeSvg(title, subtitle, color, bigFont) {
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150">
+    <rect width="300" height="150" fill="${color}"/>
+    <text x="150" y="60" font-family="Arial" font-size="${bigFont ? 34 : 16}"
+          fill="#000" text-anchor="middle" font-weight="bold">${title}</text>
+    <text x="150" y="100" font-family="Arial" font-size="13"
+          fill="#000" text-anchor="middle">${subtitle}</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.trim());
+}
+
+const imgWrongBig = makeSvg('НЕПРАВИЛЬНО', 'шрифт 50 пт', '#ADD8E6', true);
+const imgCorrect   = makeSvg('ПРАВИЛЬНО', 'оформление по ГОСТ', '#98FB98', false);
+const imgWrongCity = makeSvg('НЕПРАВИЛЬНО', 'нет города', '#FFB6C1', false);
+
+/* ---------- Вопросы ---------- */
+const questions = [
+  {
+    id: 1, type: 'choice',
+    question: 'В каком порядке должны располагаться основные структурные элементы пояснительной записки?',
+    options: [
+      { text: 'Титульный лист → Содержание → Введение → Основная часть → Заключение → Список литературы', correct: true },
+      { text: 'Введение → Титульный лист → Основная часть → Содержание', correct: false },
+      { text: 'Содержание → Список литературы → Титульный лист → Основная часть', correct: false }
+    ]
+  },
+  {
+    id: 2, type: 'choice',
+    question: 'Найдите ошибку в оформлении перечисления:\n' +
+              '1. Первый пункт;\n2. Второй пункт;\n   а) подпункт первый\n   б) подпункт второй;',
+    options: [
+      { text: 'Точка с запятой в конце пунктов нумерованного списка не ставится, если далее следуют подпункты. Правильно: «1. Первый пункт\n2. Второй пункт…»', correct: true },
+      { text: 'Подпункты должны обозначаться цифрами 1.1, 1.2, а не буквами а), б)', correct: false },
+      { text: 'В конце перечисления всегда ставится точка, а не точка с запятой', correct: false }
+    ]
+  },
+  {
+    id: 3, type: 'sort',
+    question: 'Расставьте элементы титульного листа в правильном порядке (сверху вниз):',
+    items: [
+      { text: 'Название учебного заведения', id: 'school' },
+      { text: 'Название темы работы', id: 'title' },
+      { text: 'Выполнил: ФИО студента', id: 'author' },
+      { text: 'Оценка и подпись руководителя', id: 'grade' },
+      { text: 'Город и год выполнения работы', id: 'city' }
+    ]
+  },
+  {
+    id: 4, type: 'match',
+    question: 'Сопоставьте термин и его назначение в проекте:',
+    pairs: [
+      { term: 'Аннотация', definition: 'Краткая характеристика работы с точки зрения содержания и назначения' },
+      { term: 'Оглавление', definition: 'Перечень всех разделов с указанием страниц' },
+      { term: 'Нормоконтроль', definition: 'Проверка соответствия оформления требованиям ГОСТ' }
+    ]
+  },
+  {
+    id: 5, type: 'fill-blank',
+    question: 'Впишите пропущенное слово: «Расстояние между заголовком раздела и последующим текстом должно быть равно ___ межстрочным интервалам.»',
+    answers: ['трем', '3', 'трём', 'три']
+  },
+  {
+    id: 6, type: 'true-false',
+    question: 'Верно ли, что список использованных источников оформляется в алфавитном порядке по фамилии автора или названию?',
+    answer: true
+  },
+  {
+    id: 7, type: 'image-choice',
+    question: 'Какой из вариантов оформления титульного листа соответствует стандартам (выберите изображение)?',
+    images: [
+      { src: imgWrongBig, correct: false, alt: 'Слишком большой шрифт названия' },
+      { src: imgCorrect,  correct: true,  alt: 'Стандартное оформление' },
+      { src: imgWrongCity, correct: false, alt: 'Отсутствует город' }
+    ]
+  }
+];
+
+/* ---------- Состояние ---------- */
+let currentQuestionIndex = 0;
+let score = 0;
+let answered = false;       // защита от повторного ответа на текущем вопросе
+let pendingNext = false;    // показан ли фидбек и ждём "Далее"
+
+const progressFill = document.querySelector('.progress-fill');
+const questionText = document.getElementById('question-text');
+const optionsDiv = document.getElementById('options');
+const inputArea = document.getElementById('input-area');
+const sortableArea = document.getElementById('sortable-area');
+const submitBtn = document.getElementById('submit-btn');
+const feedbackDiv = document.getElementById('feedback');
+const finalScreen = document.getElementById('final-screen');
+
+/* ---------- Утилиты ---------- */
+function clearAreas() {
+  optionsDiv.innerHTML = '';
+  inputArea.innerHTML = '';
+  inputArea.style.display = 'none';
+  sortableArea.innerHTML = '';
+  feedbackDiv.className = 'feedback';
+  feedbackDiv.textContent = '';
+  submitBtn.style.display = 'block';
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Проверить ответ';
+  answered = false;
+  pendingNext = false;
+  // сброс временных состояний сопоставления
+  selectedTerm = null;
+  selectedDef = null;
+}
+
+function showFeedback(isCorrect, customText) {
+  feedbackDiv.classList.add('show');
+  feedbackDiv.classList.add(isCorrect ? 'success' : 'error');
+  feedbackDiv.textContent = customText || (isCorrect
+    ? 'Правильно! Отличная работа.'
+    : 'Ошибка. Смотрите правильный ответ выше.');
+  submitBtn.textContent = 'Следующий вопрос';
+  submitBtn.disabled = false;
+  pendingNext = true;
+}
+
+/* ---------- Рендер вопроса ---------- */
+function renderQuestion() {
+  clearAreas();
+  const q = questions[currentQuestionIndex];
+  progressFill.style.width = `${(currentQuestionIndex / questions.length) * 100}%`;
+
+  // Заголовок вопроса
+  questionText.textContent = q.question;
+  questionText.style.display = 'block';
+
+  if (q.type === 'choice') {
+    q.options.forEach(opt => {
+      const div = document.createElement('div');
+      div.className = 'option-item';
+      div.textContent = opt.text;
+      div.onclick = () => handleChoiceClick(div, opt.correct);
+      optionsDiv.appendChild(div);
+    });
+  }
+
+  if (q.type === 'sort') {
+    // Перемешиваем для честности
+    const shuffled = [...q.items].sort(() => Math.random() - 0.5);
+    shuffled.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'drag-item-row';
+
+      const div = document.createElement('div');
+      div.className = 'drag-item';
+      div.textContent = item.text;
+      div.dataset.id = item.id;
+
+      const controls = document.createElement('div');
+      controls.className = 'sort-controls';
+      const up = document.createElement('button');
+      up.textContent = '▲';
+      up.title = 'Вверх';
+      up.onclick = (e) => { e.stopPropagation(); moveItem(row, -1); };
+      const down = document.createElement('button');
+      down.textContent = '▼';
+      down.title = 'Вниз';
+      down.onclick = (e) => { e.stopPropagation(); moveItem(row, 1); };
+      controls.appendChild(up);
+      controls.appendChild(down);
+
+      row.appendChild(div);
+      row.appendChild(controls);
+      sortableArea.appendChild(row);
+    });
+  }
+
+  if (q.type === 'match') {
+    const columns = document.createElement('div');
+    columns.className = 'match-columns';
+
+    const termsCol = document.createElement('div');
+    termsCol.className = 'match-col';
+    const defsCol = document.createElement('div');
+    defsCol.className = 'match-col';
+
+    // Перемешиваем определения
+    const defs = q.pairs.map(p => p.definition).sort(() => Math.random() - 0.5);
+
+    q.pairs.forEach(pair => {
+      const termBtn = document.createElement('div');
+      termBtn.className = 'option-item';
+      termBtn.textContent = pair.term;
+      termBtn.dataset.def = pair.definition;
+      termBtn.onclick = () => selectMatchTerm(termBtn);
+      termsCol.appendChild(termBtn);
+    });
+
+    defs.forEach(def => {
+      const defBtn = document.createElement('div');
+      defBtn.className = 'option-item';
+      defBtn.textContent = def;
+      defBtn.onclick = () => selectMatchDef(defBtn);
+      defsCol.appendChild(defBtn);
+    });
+
+    columns.appendChild(termsCol);
+    columns.appendChild(defsCol);
+    optionsDiv.appendChild(columns);
+  }
+
+  if (q.type === 'fill-blank') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Ваш ответ';
+    input.id = 'fill-input';
+    inputArea.appendChild(input);
+    inputArea.style.display = 'block';
+  }
+
+  if (q.type === 'true-false') {
+    [['Верно', true], ['Неверно', false]].forEach(([label, val]) => {
+      const div = document.createElement('div');
+      div.className = 'option-item';
+      div.textContent = label;
+      div.onclick = () => handleChoiceClick(div, val === q.answer, true);
+      optionsDiv.appendChild(div);
+    });
+  }
+
+  if (q.type === 'image-choice') {
+    q.images.forEach(img => {
+      const container = document.createElement('div');
+      container.className = 'image-container';
+      const image = document.createElement('img');
+      image.src = img.src;
+      image.alt = img.alt;
+      image.style.border = '3px solid #dee2e6';
+      image.style.borderRadius = '8px';
+      image.style.cursor = 'pointer';
+      image.onclick = () => handleImageClick(image, img.correct);
+      container.appendChild(image);
+      optionsDiv.appendChild(container);
+    });
+  }
+}
+
+/* ---------- Обработка ответов ---------- */
+function handleChoiceClick(element, isCorrect, alreadyBool) {
+  if (answered) return;
+  answered = true;
+  const siblings = element.parentNode.children;
+  for (const el of siblings) {
+    el.style.pointerEvents = 'none';
+    el.classList.add('disabled');
+    if (el === element) {
+      el.classList.add(isCorrect ? 'correct' : 'wrong');
+    } else {
+      // Подсвечиваем правильный ответ среди остальных, если это выбор
+      if (!alreadyBool) {
+        // ничего не делаем — правильный может быть не выбран
+      }
+    }
+  }
+  if (isCorrect) score++;
+  showFeedback(isCorrect);
+}
+
+/* ---------- Сортировка (стрелки) ---------- */
+function moveItem(row, direction) {
+  if (answered) return;
+  const parent = row.parentNode;
+  if (direction < 0 && row.previousElementSibling) {
+    parent.insertBefore(row, row.previousElementSibling);
+  } else if (direction > 0 && row.nextElementSibling) {
+    parent.insertBefore(row.nextElementSibling, row);
+  }
+}
+
+/* ---------- Сопоставление ---------- */
+let selectedTerm = null;
+let selectedDef = null;
+let matchScoreThisQuestion = 0;
+
+function selectMatchTerm(el) {
+  if (answered) return;
+  if (selectedTerm) selectedTerm.classList.remove('selected');
+  selectedTerm = el;
+  el.classList.add('selected');
+  checkMatch();
+}
+function selectMatchDef(el) {
+  if (answered) return;
+  if (selectedDef) selectedDef.classList.remove('selected');
+  selectedDef = el;
+  el.classList.add('selected');
+  checkMatch();
+}
+function checkMatch() {
+  if (selectedTerm && selectedDef) {
+    const isCorrect = selectedTerm.dataset.def === selectedDef.textContent;
+    selectedTerm.style.pointerEvents = 'none';
+    selectedDef.style.pointerEvents = 'none';
+    selectedTerm.classList.add('disabled');
+    selectedDef.classList.add('disabled');
+    if (isCorrect) {
+      selectedTerm.classList.add('correct');
+      selectedDef.classList.add('correct');
+      matchScoreThisQuestion++;
+    } else {
+      selectedTerm.classList.add('wrong');
+      selectedDef.classList.add('wrong');
+    }
+    selectedTerm = null;
+    selectedDef = null;
+
+    // если все пары сопоставлены — фидбек по всему заданию
+    const totalPairs = questions[currentQuestionIndex].pairs.length;
+    if (matchScoreThisQuestion + countWrongPairs() >= totalPairs) {
+      answered = true;
+      const allCorrect = matchScoreThisQuestion === totalPairs;
+      if (allCorrect) score++;
+      showFeedback(allCorrect, allCorrect
+        ? 'Все пары сопоставлены верно!'
+        : `Верно сопоставлено пар: ${matchScoreThisQuestion} из ${totalPairs}.`);
+    }
+  }
+}
+function countWrongPairs() {
+  const wrong = optionsDiv.querySelectorAll('.option-item.wrong').length;
+  return wrong / 2;
+}
+
+/* ---------- Выбор изображения ---------- */
+function handleImageClick(image, isCorrect) {
+  if (answered) return;
+  answered = true;
+  const images = optionsDiv.querySelectorAll('img');
+  images.forEach(img => { img.style.pointerEvents = 'none'; });
+  if (isCorrect) {
+    image.style.borderColor = 'var(--success-color)';
+    score++;
+  } else {
+    image.style.borderColor = 'var(--error-color)';
+    // подсветить правильное
+    const q = questions[currentQuestionIndex];
+    images.forEach((img, idx) => {
+      if (q.images[idx].correct) img.style.borderColor = 'var(--success-color)';
+    });
+  }
+  showFeedback(isCorrect);
+}
+
+/* ---------- Кнопка "Проверить / Далее" ---------- */
+submitBtn.onclick = () => {
+  if (pendingNext) {
+    // переход к следующему вопросу
+    if (currentQuestionIndex < questions.length - 1) {
+      currentQuestionIndex++;
+      renderQuestion();
+    } else {
+      endGame();
+    }
+    return;
+  }
+
+  if (answered) return;
+  const q = questions[currentQuestionIndex];
+
+  if (q.type === 'fill-blank') {
+    const input = inputArea.querySelector('input');
+    const val = (input.value || '').trim().toLowerCase();
+    const isCorrect = q.answers.some(a => a.toLowerCase() === val) && val.length > 0;
+    answered = true;
+    input.disabled = true;
+    if (isCorrect) score++;
+    // показать правильный ответ
+    if (!isCorrect) {
+      feedbackDiv.dataset.answer = q.answers[0];
+    }
+    showFeedback(isCorrect, isCorrect ? 'Правильно!' : `Ошибка. Правильный ответ: «${q.answers[0]}».`);
+  }
+
+  if (q.type === 'sort') {
+    const rows = Array.from(sortableArea.querySelectorAll('.drag-item-row'));
+    const ids = rows.map(r => r.querySelector('.drag-item').dataset.id);
+    const correctOrder = q.items.map(i => i.id);
+    const isCorrect = JSON.stringify(ids) === JSON.stringify(correctOrder);
+    answered = true;
+
+    // подсветить
+    rows.forEach((row, idx) => {
+      const item = row.querySelector('.drag-item');
+      item.style.pointerEvents = 'none';
+      row.querySelectorAll('.sort-controls button').forEach(b => b.disabled = true);
+      if (ids[idx] === correctOrder[idx]) {
+        item.classList.add('correct');
+      } else {
+        item.classList.add('wrong');
+      }
+    });
+    if (isCorrect) score++;
+    showFeedback(isCorrect, isCorrect
+      ? 'Правильный порядок!'
+      : 'Порядок неверный. Правильная последовательность: ' +
+        q.items.map(i => i.text).join(' → '));
+  }
+};
+
+/* ---------- Завершение ---------- */
+function endGame() {
+  questionText.style.display = 'none';
+  optionsDiv.style.display = 'none';
+  inputArea.style.display = 'none';
+  sortableArea.style.display = 'none';
+  submitBtn.style.display = 'none';
+  feedbackDiv.style.display = 'none';
+  progressFill.style.width = '100%';
+
+  const scorePercent = Math.round((score / questions.length) * 100);
+  finalScreen.querySelector('h2').textContent =
+    `Тест завершён! Ваш результат: ${score} из ${questions.length} (${scorePercent}%)`;
+  let msg;
+  if (scorePercent === 100) msg = 'Идеально! Вы — мастер оформления.';
+  else if (scorePercent >= 80) msg = 'Отличный результат, вы хорошо знаете правила.';
+  else if (scorePercent >= 50) msg = 'Неплохо, но стоит повторить правила ГОСТ.';
+  else msg = 'Стоит внимательно изучить требования к оформлению проектных работ.';
+  finalScreen.querySelector('p').textContent = msg;
+  finalScreen.style.display = 'block';
+}
+
+document.getElementById('restart-btn').onclick = () => {
+  currentQuestionIndex = 0;
+  score = 0;
+  answered = false;
+  pendingNext = false;
+  selectedTerm = null;
+  selectedDef = null;
+  matchScoreThisQuestion = 0;
+  finalScreen.style.display = 'none';
+  questionText.style.display = 'block';
+  optionsDiv.style.display = 'block';
+  sortableArea.style.display = 'block';
+  renderQuestion();
+};
+
+// Старт
+renderQuestion();
+</script>
+</body>
+</html>
